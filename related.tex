@@ -1,0 +1,304 @@
+\section{Related Work}
+\label{sec:related}
+
+Our work is related to many techniques that attempt to defend against
+attacks on vulnerabilities in applications. In this section, we
+elaborate on some of the pieces of work most closely related to
+ours. We present the various attack techniques utilized by
+attackers that are relevant for this research and then we go on to
+present various techniques proposed for mitigating these attack
+techniques. We also briefly discuss related work in
+binary rewriting.
+
+\subsection{Catalog of Attack Techniques}
+
+\mypar{Buffer Overflow Attacks} A buffer overflow refers to a
+situation that can occur when code writes into a bounded array, or
+buffer, and the writes are not correctly guarded against
+overflow. Data copied into the buffer whose length is larger than the
+buffer's size is referred to as a buffer overflow. Writes into a
+buffer that are not correctly guarded may overwrite and corrupt a
+variety of vulnerable locations that may also be stored nearby the
+buffer, including return addresses, base pointers, function pointers,
+and \emph{longjmp} buffers. Although buffer overflows have
+historically most often occurred on the stack, they are also possible
+on heap and global segment buffers.  For example a global buffer's
+overflow may overwrite a function pointer or \emph{longjmp} buffer
+also in the global segment.
+
+Buffer overflow attacks work by changing the value of the code pointer
+stored in vulnerable locations such as return addresses, function
+pointers and \emph{longjmp} buffers. The code pointer is overwritten
+by a new value pointing to code of the attacker's choice.  Base
+pointers are also vulnerable even though they are not code since they
+can be used for attacks \cite{wilander2003}. A return address attack
+was first described in detail by AlephOne in 1996
+\cite{one1996}. However, attacks of this kind date back to before 1988
+when the technique was used in the \begin{em}fingerd\end{em} exploit
+  of the Morris worm.
+
+Commonly, an attacker would choose their input data so that the
+machine code for an attack payload would be present at the modified
+return address. When the vulnerable function returns, and execution of
+the attack payload begins, the attacker has gained control of the
+behavior of the target software. The attack payload is often called
+shellcode, since a common goal of an attacker is to launch a command
+line interpreter (referred to as a shell in UNIX like environments)
+under their control.
+
+\mypar{Return-to-libc Attacks} As an alternative to supplying
+executable code (referred to as direct code injection), an attacker
+might be able to craft an attack that executes existing machine code
+(indirect code injection). This class of attacks has been referred to
+as jump-to-libc or return-to-libc (arc injection
+\cite{cowan2000buffer} has also been used to refer to this class of
+attacks) because the attack often involves directing execution towards
+machine code in the standard C library (libc)
+\cite{cowan2000buffer}. The standard C library is often the target for
+attacks of this type since it is loaded in nearly every UNIX program
+and it contains routines of the sort that are useful for an
+attacker. This technique was first suggested by Solar Designer in 1997
+\cite{designer1997return}. Attacks of this kind can evade defense
+mechanisms that protect the stack such as stack canaries and it is
+also effective against defenses that only allow memory to be writable
+or executable.
+
+Traditionally, attacks of this kind have targeted the system function
+in the standard system library which allows the execution of an
+arbitrary command with arguments. In this case, the return address of
+a vulnerable function would be modified to point to the address of the
+system function which would then be executed with attacker supplied
+arguments. Since the system function executes a command on a system,
+if an attacker can control the arguments to this function, they could
+execute an arbitrary command on the system under attack. However,
+recent attacks have been demonstrated which do not depend on calling
+functions in the standard C library.
+
+% Padraig: Please explain the exact mechanism of how the above
+% return-to-libc attack works, for example the system function attack
+% you mention above.  As this subsection is written now, I cannot
+% understand how any return-to-libc attack works.  DONE
+
+\subsection{Catalog of Defense Techniques}
+
+\mypar{Compile Time Defenses} StackGuard \cite{stackguard-98} places a
+'canary' (a memory location) on the stack between local variables and
+the return address. This canary value is designed to warn of stack
+corruption since validating the integrity of the canary value is an
+effective means of ensuring that the function return address has not
+been corrupted. Microsoft's compiler also supports the insertion of
+stack canaries with the /GS option.
+
+ProPolice \cite{eto2002propolice} is similar to StackGuard in that it
+places a canary value on the stack. However, ProPolice also changes
+the stack layout to place arrays and other function-local buffers
+above all other function-local variables. Copies of all function
+arguments are also made into new, function-local variables that also
+sit below any buffers in the function. As a result, these variables
+and arguments are not subject to corruption through an overflow of
+these buffers.
+
+PointGuard \cite{pointguard} protects all code pointers within a
+program. The defense consists of encrypting pointer values in memory
+and only decrypting the pointers when they are loaded into CPU
+registers. The encryption key used is a randomly generated during
+process creation and is thus unknown to an attacker. Without knowledge
+of the encryption key, an attacker can not modify any value stored in
+memory. As a result, pointer values are not subject to corruption.
+
+StackGuard, PointGuard, and ProPolice involve compile-time analysis
+and transformation. Thus, unless the source code for an application is
+available, these techniques can not be used thereby hindering the
+ability to easily deploy these techniques. In practice only the
+developer can use these defenses, and only if the compiler his or her
+organization uses supports it. Our techniques do not suffer from this
+drawback since they can be easily deployed on any binary produced from
+any source language and compiler, by not only the developer, but the
+end-user as well.
+
+% Padraig: the above paragraph references Pointguard, but it is not
+% explained anywhere before that point.  Please fix.  DONE
+
+\mypar{Instruction Set Randomization} Instruction-set randomization
+\cite{isr} is a technique for protecting against buffer
+overflows (and many kinds of code injection attacks). This approach
+randomizes the underlying system's instructions so that foreign code
+injected by an attacker would fail to execute correctly since the
+attacker does not know the instruction set of the target
+system. However, as mentioned by the authors in \cite{isr}, the main
+drawback of this technique as applied to binary code that it needs
+specialized hardware support in the processor. Thus, even though
+instruction-set randomization offers a strong defense against buffer
+overflow attacks the fact that unless it is supported by specialized
+hardware, it incurs significant overheads means that it is unlikely to
+see adoption in practice for the foreseeable future.
+
+% Padraig: In dont understand the last two sentences.  If interpretive
+% languages are not vulnerable, then how can the defense be effective?
+% You can replace "are not vulnerable to" by "have not seen many".
+% (or delete the two sentences) DONE - I removed the 2 sentences
+
+Strata (a dynamic binary translation framework) and Diablo (a
+link-time binary rewriter) were used to implement instruction set
+randomization \cite{strata}. Diablo is used to prepare a binary for
+string encryption and introduce the information necessary to detect
+foreign code. Strata is then used to provide the necessary virtual
+execution environment for safe execution. The main contribution of
+this work is that the instruction-set randomization implementation is
+efficient while requiring no special hardware support. However, the
+runtime overheads reported are still high because of the necessary
+software ISA translation at run-time, and the inherent overheads of a
+dynamic translator. These run-time overheads and likely to limit the
+practical adoption of such a system. Moreover any user of a dynamic binary rewriter must install it in addition to the application desired, making it inconvenient to use.
+
+A static (off-line) binary rewriter such as the one used for our
+research suffers from none of these issues. No special hardware is
+required in order to utilize a binary rewriter and overheads are
+relatively low since no ISA translation is done, and since no dynamic
+translator is used, no additional software in addition to the application is needed for execution. In our system, if an original binary was compiled
+without optimizations, we often see a significant run-time improvement
+when rewritten.
+
+\mypar{Address Space Layout Randomization} Address Space Layout
+Randomization (ASLR) can be seen as a relatively coarse-grained form
+of software diversity \cite{aslr}. ASLR shuffles, or randomizes, the
+layout of software in the memory address space. The common
+implementation of this scheme is at the OS level. Thus, when a process
+is launched the address space layout of the process will be different
+from a previous invocation of the same process. It is effective at
+preventing remote attackers that have no existing means of running
+code on a target system from crafting attacks that depend on
+addresses. ASLR is not intended to defend against attackers that are
+able to control the execution of a piece of software; it is mainly
+intended to hamper remote attackers from attempting to use the same
+attack repeatedly. Finally, its utility on 32-bit architectures is
+limited by the number of bits available for address randomization
+\cite{aslr32}.
+
+% Padraig: (1) Who implements existing ASLR schemes -- a compiler,
+% hardware, binary rewriter or OS?  Please clarify in above.  (2) Also
+% you write "ASLR is not intended to defend against attackers that are
+% able to control the software execution".  What does this mean?
+% (Please rewrite to clarify.)  (3) I dont understand the scheme --
+% does ASLR change the binary for each target system or once at
+% compile-time?  If it is once then the randomized binary can be
+% studied by the attacker and then attacked easily, is it not?  The
+% basic problem is that the above paragraph does not clearly describe
+% precisely what entity does ASLR or how it works and neither does it
+% give an example of it.  Please rewrite to clarify all of these
+% points.
+%
+% DONE - I attempted to address this. ASLR is not compile time, the
+% address space is randomized each time a process is launched through
+% a patch the loader in the operating system.
+
+
+A binary rewriter could easily be used to provide a similar defense
+mechanism as ASLR. An interesting future avenue of research is to
+investigate software diversity through binary rewriting.
+
+\mypar{Control Flow Integrity} Control Flow Integrity (CFI)
+\cite{cfi-05} is a basic safety property that can prevent attacks from
+arbitrarily controlling program behavior. CFI dictates that software
+execution must follow a path of a control-flow graph that is
+determined ahead of time by analysis (in this case, static binary
+analysis is performed). CFI is enforced using static verification and
+binary rewriting (with Microsoft's Vulcan \cite{vulcan} tool) that
+instruments software with runtime checks. These checks aim to ensure
+that control flow remains within a given control-flow-graph. CFI is a
+very effective defense against buffer overflow attacks (and any attack
+which attempts to change a program's control flow) since any attempt
+by an attacker to divert the control flow of a program will be caught
+by CFI. However, the main barrier to CFI's adoption seems to be the
+overhead associated with the scheme. The average overhead of CFI in
+the prototype implementation is 16\% on the SPEC2000 benchmarks. Also, unlike SecondWrite,
+the binary rewriter used by CFI depends on a binary being compiled
+with debug information which is usually not available in production
+binaries. If a binary is not compiled with debug information then CFI
+cannot be currently applied.
+
+Our schemes implemented through our binary rewriter can provide the
+same level of protection as CFI. An additional advantage of our scheme
+is that our binary rewriter does not require access to any special
+information in an input binary unlike all previous binary rewriters
+(including the binary rewriter used in CFI) which require access to
+relocation or debug information.
+
+% Padraig: Please add a reference to the blank cite I added above for
+% Microsoft's Vulcan tool.  DONE
+
+\mypar{Program Shepherding} Program Shepherding \cite{shepherd}
+employs an efficient dynamic software machine-code interpreter
+(DynamoRIO \cite{drio}) for implementing a security enforcement
+mechanism. A broad class of security policies can be implemented using
+a machine interpreter such as DynamoRIO. For example, DynamoRIO could
+be used to enforce control-flow integrity. Program shepherding
+enforces a similar policy that imposes certain runtime restrictions on
+control flow such that an attacker can not alter a program's flow of
+control.
+
+Program Shepherding can experience significant memory and runtime
+overheads, particularly on the Windows platform. The scheme requires
+an application and interpreter to be run simultaneously. The high
+overheads of interpretation in some cases are likely to limit adoption
+of Program Shepherding. Further, unlike using off-line rewriters like SecondWrite, Program Shepherding requires the installation of an extra piece of heavyweight software (DynamoRIO) in addition to the application to be run.
+
+\subsection{Related Work in Binary Rewriting}
+
+Binary rewriting and link time optimizers have been considered by a
+number of researchers. Binary rewriting research is being carried out
+in two directions: static rewriting and dynamic rewriting. Dynamic
+binary rewriters rewrite the binary during its execution. Examples are
+PIN \cite{pin}, BIRD \cite{bird}, DynInst \cite{dyninst}, DynamoRIO
+\cite{drio} and Valgrind \cite{valg}. Dynamic rewriters are hobbled
+since they do not have enough time to perform complex compiler
+transformations; they have been primarily used for code
+instrumentation and simple security checks in the past. Moreover
+dynamic rewriters do not have the time to perform deep code analysis
+needed to discover program features needed for static optimization of
+security checks. Finally dynamic rewriters encounter run-time overhead
+from the act of rewriting, which can be substantial. Given these
+drawbacks, we do not discuss dynamic rewriters further.
+
+The methods in this research are primarily directed at static binary
+rewriters such as our rewriter, SecondWrite. Existing static binary
+rewriters include Etch \cite{etch}, ATOM \cite{atom}, PLTO
+\cite{plto}, Diablo \cite{Diablo1}, and Vulcan \cite{vulcan}. Three
+points of novelty for our work are as follows. First, we are not aware
+of any rewriter adding our particular set of existing compile-time
+security schemes to binaries. Second, none of the existing rewriters
+employ a compiler level intermediate representation; rather they
+define their own low-level machine-code-like custom intermediate
+representation. This has several downsides: $(i)$ most existing
+rewriters cannot modify the stack layout since they do not distinguish
+individual objects on the stack. Hence they cannot implement security
+schemes that modify the stack; and $(ii)$ most existing rewriters
+recognize functions, but not their arguments or return values, and
+hence cannot deploy security schemes that employ these schemes. Our
+Secondwrite rewriter overcomes both these problems; due to space
+limitations, the pertinent details can be found elsewhere
+\cite{blind-kapil}.
+
+A third point of novelty of our work is that all existing rewriters
+can only rewrite binaries that contain relocation or debug
+information.  This information, present at link-time, is usually
+discarded in COTS binaries for two reasons -- it is not needed for
+execution; and vendors legitimately fear it can be used to reverse
+engineer their binaries.  Indeed of twenty commercial and open-source
+binaries we surveyed, \emph{none contained either relocation or debug
+  information}.  As a result, existing binary rewriters would not be
+able to rewrite those binaries at all.  \underline{In effect, existing
+  binary rewriters can only be deployed by developers, not end-users.}
+In contrast our rewriter (Secondwrite) can rewrite arbitrary binaries
+even without relocation or debug information, as we have described in
+previous work \cite{blind-matt}.  This renders our platform a uniquely
+powerful tool for allowing anyone to rewrite binaries from any source
+to enable any security scheme they want.
+
+%Diablo defines an augmented whole program control-flow-graph based intermediate representation with program registers as globals and memory as a black box. It does not attempt to obtain high-level information like function prototypes and is geared mainly towards  optimizations like code compaction. Taking memory as a black box limits its applicability to architectures like x86 which have a limited set of registers. ATOM defines a symbolic RTL-based intermediate representation with infinite registers but does not make any attempt of analyzing or modifying the stack layout. Its mainly targeted towards RISC architectures. PLTO employs a whole program CFG based IR and implements stack analysis to determine the use-kill depths of each function. However, this information is not used for converting it into high-level IR; rather it is only used for low-level custom optimizations like load/store forwarding. Etch does not explicitly build an intermediate representation build an intermediate representation and allows users to add new tools to analyze binaries. The primary goal of Etch appears to be instrumentation and has only been shown to be applicable for simple optimizations like profile-guided code layout.
+%
+%\input{summary-deleted}
+%
+% Padraig: I deleted the summary above and moved it to a file since I
+% thought it was overly simplistic and unnecessary.  DONE - not really
+% anything to do here...

@@ -1,0 +1,121 @@
+\section{Introduction}
+\label{sec:introduction}
+
+% Padraig: I just read the call for papers for ACSAC and it says the
+% papers should be blinded.  Please read:
+% http://www.acsac.org/2010/cfp/papers/ As a result, please remove the
+% author names and all self-references.  Right now there are two I
+% added: Matt's patent and kapil's pact paper.  Please replace those
+% with new citations saying only "Suppressed for blind review."  You
+% can leave the Secondwrite name there since no one yet knows where it
+% comes from.  DONE
+
+Despite considerable research and work on programmer education and
+tools, programming language and compiler support for security,
+hardware and operating system features, low-level software
+vulnerabilities remain an important source of compromises and a
+perennial threat to system security. While other sources of
+vulnerability have emerged more recently, such as SQL injection,
+cross-site scripting (XSS) and cross-site request forgery (XSRF),
+binary-level vulnerabilities continue to be discovered in very popular
+software \cite{flash-overflow,ms-overflows} and to be exploited for
+fun and profit \cite{buffer-overflows}.
+
+The lack of convergence to a comprehensive solution can be attributed
+to several factors, consisting of a mix of the technical and
+non-technical. At the core, there exists a fundamental dichotomy in
+the capabilities and motivation of producers and consumers of
+software, vendors and end-users/administrators respectively. On the
+one hand, software producers are probably in the best position to both
+proactively and reactively prevent and mitigate such vulnerabilities:
+they have access to the source code, the compiler tool chain, and the
+developers themselves. As a result, they can apply security mechanisms
+that offer high coverage and effectiveness at low overhead, because
+they are applied at the point where the most semantic knowledge about
+the program and the code is available. On the other hand, it is
+software consumers that face the risk and bear the costs of compromise
+due to software vulnerabilities and are the most motivated to take
+action, often localized, to mitigate a newly discovered
+vulnerability. However, consumers often only have access to the
+program binary and configuration files. Thus, absent vendor patches
+(which can often take a long time and may contain bugs \cite{patches})
+consumers can only use security mechanisms that treat the
+software as a black box. Inevitably, such mechanisms resort to
+isolation ({\it e.g.,} through a virtual machine) or to behavioral
+detection ({\it e.g.,} system call monitoring), with attendant costs,
+complexity and risk. Even security-conscious software consumers often
+cannot properly evaluate the risks they face because they do not know
+what security mechanisms, if any, a producer has used in their
+development process and tool-chain \cite{securitybugs2003}.
+
+% Padraig: Please fix all the XXX comments Angelos inserted above
+% before returning the document to him for final review.  DONE -
+% wasn't sure about the paper related to quality of patches but the
+% paper I reference makes some compelling points that I thought made
+% the same argument on the quality of patches. It also makes the point
+% that patches for commercial products can take quite long to be
+% released
+
+We present a new mechanism based on advanced binary rewriting that
+seeks to bridge the gap between incentive/motivation and capabilities
+on the consumer side. Our approach allows end users to retrofit
+powerful security mechanisms into third-party, binary-only
+software. These mechanisms are well-known, and some of them have been
+{\it partially} integrated in separate tools and development
+environments ({\it e.g.,} ProPolice in {\it gcc} and the optional {\it
+  /GS} flag in Visual Studio). Our system allows end-users to ensure
+that the software they run on their systems uses any and all such
+features, regardless of the choices or capabilities of
+vendors\footnote{It is worth pointing out that not all development
+  tool-chains support a given security feature, while vendors and
+  products are often intimately tied to them. As a result, there is
+  considerable reluctance by vendors to switch to a ``better''
+  compiler, for example, even if such existed.}. Furthermore, our
+approach allows end-users to selectively apply different defense
+mechanisms to different parts of the program, based on their own
+analysis, risk assessment, and knowledge of potential or actual
+vulnerabilities in the code. Essentially, we provide the same
+self-defense capabilities that open-source software users {\it can}
+utilize to users of binary-only software\footnote{Of course, just
+  because open-source software users {\it can}, does not mean they
+  generally {\it do} assess or modify/secure their installations.}.
+
+The contributions of this paper are twofold. First, we present a
+powerful binary-rewriting framework in the context of software
+security. Specifically, we investigate the ability of such a system to
+retrofit known invasive, powerful and low-overhead security mechanisms
+to program binaries, in the absence of source code or even debugging
+symbols. Second, we evaluate the effectiveness and efficiency of our
+scheme and of the retrofitted security mechanisms, as compared to
+other ways in which these and similar security mechanisms can be
+applied to software. We conclude that a system such as ours would
+enable software consumers to protect themselves at the same level of
+effectiveness as if vendors had taken similar steps ({\it i.e.,} used
+the same security techniques) and at equally low overhead. Thus, we
+believe that we have removed a significant factor in improving the
+overall security posture of systems against low-level software
+compromises.
+
+An additional contribution of this paper is that we have carefully
+chosen a set of complementary and effective schemes that, taken
+together, achieve the goal of defending against all types of buffer
+overflow attacks at the lowest combined run-time cost.  The totality
+of our schemes protect against buffers on the global, stack, and heap
+segments from overflowing onto a variety of (usually code) pointer
+locations that are vulnerable to attack, including return
+addresses, function pointers, indirect branch pointers, \emph{longjmp}
+buffers, and base pointers. This is an important practical
+contribution in itself, as this is the first solution in the
+literature to retrofit a comprehensive set of protections against
+buffer overflow attacks, which are still very common, into arbitrary
+new and legacy binaries.  We intend to make this tool available
+publicly soon.
+
+The remainder of this paper is organized as
+follows. Section~\ref{sec:related} gives an overview of related work
+in binary rewriting and binary-only software security
+mechanisms. Section~\ref{sec:background} presents background on binary
+rewriting, and how rewriting relates to security. We describe the
+methods we have chosen in Section \ref{sec:methods}, and discuss
+experimental results in Section~\ref{sec:results}. We conclude with
+our thoughts for future work in Section~\ref{sec:conclusions}.

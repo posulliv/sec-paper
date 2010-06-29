@@ -1,0 +1,226 @@
+\section{Methods}
+\label{sec:methods}
+
+One of the contributions of this paper is that we have carefully
+chosen a set of complementary and effective schemes that, taken
+together, achieve the goal of defending against all types of buffer
+overflow attacks at the lowest combined run-time cost.  The totality
+of our schemes protect against not only the commonly known stack
+buffer overflow into return addresses, but is much more general than
+that, in that they protect against buffers on the global, stack and
+heap segments from overflowing onto a variety of code pointer
+locations that are possible in any data segment, including return
+addresses, function pointers, indirect branch pointers, \emph{longjmp}
+buffers, and base pointers\footnote{Base pointers are not code
+  pointers but lead to a similar vulnerability \cite{wilander2003}.}.
+
+We implement our scheme by adding various passes that operate on
+high-level IR inside our binary rewriter. Our overall scheme consists
+of a number of components that we describe in detail in this section.
+
+\subsection{Stack Canary Insertion}
+
+The first component of our scheme is the simplest. LLVM provides the
+ability to insert stack canaries during code generation. Utilizing
+this capability allows us to easily provide the same level
+of protection to an un-protected binary as
+StackGuard~\cite{stackguard-98} would provide when given an
+application's source code.
+
+Essentially, a random canary value is generated at run-time and placed
+on the stack during a function's prologue. In the function epilogue,
+the value stored on the stack is compared with the random canary value
+for this process. If there is any difference, execution is halted as
+the canary value has been corrupted.
+
+\subsection{Base Pointer Elimination}
+
+The \emph{old base pointer} which resides on the stack is a data
+pointer that points to the base of the parent function's
+stack frame. Compilers sometimes introduce it since it makes it
+convenient to restore the stack pointer at the end of the function and
+to address different stack locations with the same offset even as the
+stack grows and shrinks in the function. When it is present in the
+input binary, it introduces a vulnerability just as dangerous as a
+code pointer~\cite{wilander2003}. This is because the old base pointer
+can be attacked by building a fake stack frame with a return address
+pointing to attack code, followed by overflowing the buffer to
+overwrite the old base pointer with the address of this fake stack
+frame. Upon return, control will be passed to the fake stack frame
+which immediately returns again redirecting flow of control to the
+attack code.
+
+Given our unique use of LLVM IR in Secondwrite, the elimination of the
+base pointer in the output binary becomes a simple matter even when
+the input binary has base pointers. LLVM is an optimizing compiler and
+the binaries produced by LLVM are highly optimized. One common
+optimization applied by modern compilers on the x86 platform is to
+free up the EBP register for register allocation by removing the base
+(or frame) pointer. We used this LLVM pass to eliminate the base
+pointer from the binary.
+
+When the base pointer is eliminated by LLVM, any attack relying on overwriting the base pointer
+is immediately prevented. There will be no base pointer for an
+attacker to modify. While corruption of the stack may still occur if
+an attacker overflows a buffer in order to attempt to overwrite the
+base pointer, no attack will be successful.
+
+\subsection{Return Address Protection}
+
+Given that stack canaries as inserted by LLVM do not provide the same
+level of protection as the ProPolice mechanism that comes with GCC, we
+decided to implement a more complete solution similar to the
+protection scheme in StackShield \cite{stackshield}, that protects
+against corruption of the return address. The basic idea of our return
+address protection scheme is as follows:
+
+\mybeginenumerate
+
+ \item During the function prologue, push the return address of the
+   current function in a return address stack implemented in a global
+   variable.
+
+ \item In function epilogue, compare the current return address on the
+   stack with the value popped from the top of the return address
+   stack.
+
+ \item If there is any difference between these values, execution is
+   halted.
+
+\end{enumerate}
+
+This simple scheme will detect if the return address has been modified
+either directly or indirectly. We implemented this scheme as it is
+relatively simple and protects against both direct and in-direct
+modifications of the return address. It also requires no modification
+of the stack layout and prevents modifications of the return address
+through buffer overflows in the heap or global segments.
+
+Two challenges with this scheme are as follows. First, its overhead
+might be significant since every function has an associated security
+overhead incurred every time it is called. We found this overhead to
+be especially significant for recursive functions since they tend to
+short-running. Second, the size of the return address stack might be
+significant for deeply nested recursive functions, and we would have
+to bound it a-priori, which is hard to do.
+
+We applied an optimization for relieving this problem which we call
+the \emph{return address check optimization}. We observed that this
+protection mechanism is only necessary if a function contains a write
+to a stack buffer since return addresses only exist on the stack. This
+is hard to determine without symbolic information, so we
+conservatively try to prove that a function only has directly
+addressed memory references to constant addresses.  If it finds any
+indexed write (base + runtime-variant offset), then it conservatively
+assumes that it could be a buffer write, and disables the
+optimization. If all writes are provably non-indexed writes to a
+constant offset, it enables the optimization, \ie the protection
+mechanism is turned off in the function. Thus the optimization saves
+on run-time overhead without sacrificing any protection.
+
+% Padraig: Please complete the above paragraph.  Talk about why you
+% think this scheme is better than stack canaries and propolice.  DONE
+
+% Padraig: In the results section we should present results on the
+% impact of the return address check optimization.  NOT DONE - raw
+% numbers have been collected but not sure how to show this and stay
+% within the page limit required for the conference
+
+We found this optimization surprisingly effective since it works best
+for small leaf functions in the call graph, and for recursive
+functions, which happen to be precisely the functions dynamically
+called most frequently.  During our experimental evaluation of our
+scheme, of the many recursive functions we found, every one of them
+had its check optimized away.  This is unsurprising since recursive
+functions tend to be short running, and unlikely to allocate stack
+arrays (although they may access portions of global arrays, such as in
+quicksort, but those still are optimized.)  As a result of the
+optimization, the run-time overhead for scheme is greatly reduced, and
+the required return address stack depth is also greatly reduced.  Of
+course, the overflow of the return address stack is not an error as we
+add extensions to it on the heap upon overflow, which slows execution,
+but is extremely rarely invoked even for small return address stack
+sizes of (say) 256 addresses.
+
+\subsection{Function Pointer Protection}
+
+One common attack method used by attackers is to overwrite a function
+pointer so that when it is de-referenced, code of the attacker's
+choosing will be executed. In a binary executable, function pointers
+will appear as indirect calls. Thus, another component of our scheme
+concentrates on protecting all indirect calls and branches similar to
+how function pointers are protected in StackShield \cite{stackshield}.
+
+Our scheme adds checking code before all indirect calls and
+branches. A global variable is declared at the end of the data segment
+and its address is used as a boundary value. The checks inserted
+before any indirect call or branch ensure that the target of the
+indirect call or branch points to memory below the address of the
+global boundary variable. If the target points above the address of
+this global boundary variable then execution is halted.
+
+% Padraig: Need to explain why the above scheme works.  What invariant
+% are you assuming about the way OSs lay out the global and code data
+% segments?  You should allow the function pointer to point to the
+% code segment, but not the data segments, and not dlls either.  How
+% does the above scheme ensure that? Does the scheme work when the
+% attacker changes the function pointer to point to the C library
+% (return-to-libc attack?)  DONE
+
+An assumption in the above scheme is that a process follows the
+standard UNIX layout with the data segment above the code
+segment. This scheme does not protect against return-to-libc attacks
+since the target of the indirect call will still be within the code
+segment.
+
+\subsection{Protection for \emph{longjmp} buffers}
+
+The paired functions \emph{setjmp} and \emph{longjmp}, present in most
+C and C++ libraries, provide a means to alter a program's control flow
+in addition to the usual subroutine call and return sequence. First,
+\emph{setjmp} saves the environment of the calling function (say
+\emph{foo()})into a data structure, and then \emph{longjmp} in another
+function (say \emph{bar()}) can use this structure to jump back to the
+point it was created, at the \emph{setjmp} call. As a result,
+execution will return from \emph{bar()} to \emph{foo()} even when
+\emph{foo()} is not the immediate parent of \emph{bar()}. A typical
+use for \emph{setjmp}/\emph{longjmp} is exception handling.
+
+The data structure used by \emph{setjmp} for saving the execution
+state is referred to as a \emph{jmp\_buf}. Within this structure,
+enough information is stored to restore a calling environment. In
+particular, one member of this structure saves the value of the
+program counter which is used when restoring the calling
+environment. An attack method used by attackers is to overwrite the
+value of the program counter stored in the \emph{jmp\_buf} structure
+after a call to \emph{setjmp} and before a call to \emph{longjmp}. If
+this happens, control will be transferred to an address of the
+attacker's choosing when the \emph{longjmp} is executed. Our method
+for defending against attacks of this kind is as follows:
+
+\mybeginenumerate
+
+ \item Create a hash table within the global segment of the rewritten
+   binary.
+ \item After each call to \emph{setjmp} store the current value of the
+   program counter member of the \emph{jmp\_buf} structure in the hash
+   table.
+ \item Before a call to \emph{longjmp} get the current value of the
+   \emph{jmp\_buf} structure that will be used. Attempt to perform a
+   lookup in the hash table for the value of the program counter.
+ \item If the lookup in the hash table fails, then the value of the
+   program counter has been modified and so we abort; otherwise
+   execution continues
+
+\end{enumerate}
+
+We expect the run-time overhead of this scheme to be very low in
+practice, since \emph{setjmp} and \emph{longjmp} calls are very
+rare. To the best of our knowledge, this scheme is the first
+protection scheme designed to protect against longjmp buffer attacks
+in the manner described.
+
+% Padraig: You need to say here if this method is a new method of our
+% creation, an existing method, or a variant of an existing method.
+% In the later two cases, give a reference.  If it is new, say so and
+% claim credit for it!  DONE

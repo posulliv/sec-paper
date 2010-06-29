@@ -1,0 +1,21 @@
+We present a practical tool for inserting security features against
+low-level software attacks into third-party, proprietary or otherwise
+binary-only software. We are motivated by the inability of software
+users to select and use low-overhead protection schemes when source
+code is unavailable to them, by the lack of information as to what (if
+any) security mechanisms software producers have used in their
+toolchains, and the high overhead and inaccuracy of solutions that
+treat software as a black box.
+
+Our approach is based on {\it SecondWrite}, an advanced binary
+rewriter that operates without need for debugging information or other
+assist. Using SecondWrite, we insert a variety of defenses into
+program binaries. Although the defenses are generally well known, they
+have not generally been used together because they are implemented by
+different (non-integrated) tools. We are also the first to demonstrate
+the use of such mechanisms in the absence of source code
+availability. We experimentally evaluate the effectiveness and
+performance impact of our approach. We show that it stops all variants
+of low-level software attacks at a very low performance overhead,
+without impacting original program functionality.
+

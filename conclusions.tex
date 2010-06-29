@@ -1,0 +1,26 @@
+\section{Conclusions}
+\label{sec:conclusions}
+
+We have presented a new mechanism using an advanced binary rewriter
+that allows end users to retrofit powerful security features into
+third-party, binary-only software. The particular mechanisms we used
+are well known, and some have been partially implemented in other
+tools.  Our system will allow end-users to retrofit program-level
+security protections for the first time in a highly customizable
+manner according to their needs and environment.
+
+We demonstrated the effectiveness of our mechanism via experimental
+evaluation, begining with the benchmarks developed by Wilander and
+Kamkar. We successfully mitigated all the attack forms in the
+benchmarks. We then went on to demonstrate how our mechanism
+successfully defends against multiple real-world attacks. We also
+measured the overheads of our binary rewriter in isolation and then we
+showed what the overhead of adding the security mechanism to a binary
+is. In both cases, we demonstrated that the overhead introduced is
+quite low.
+
+Future work involves extending the binary rewriter to work on more
+substantial applications and demonstrating that the mechanism defends
+against more real-world attacks. Other interesting avenues for future
+research are software diversification and self-healing techniques
+using the binary rewriter we have developed.

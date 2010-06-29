@@ -1,0 +1,73 @@
+\documentclass[11 pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{multirow}
+\usepackage{multicol}
+\usepackage{setspace}
+\usepackage{epsfig}
+\usepackage{times}
+\usepackage{subfigure}
+\usepackage{cite}
+\usepackage{url}
+
+\sloppy
+\raggedbottom
+
+\newcommand{\cellshade}[3]{\multicolumn{1}{>{\columncolor[gray]{#1}}#2}{\raisebox{-\belowrulesep}[0ex][8\aboverulesep]{#3}}}
+\newcommand{\cellnoshade}[1]{\raisebox{-\belowrulesep}[0ex][8\aboverulesep]{#1}}
+\newcommand{\mypar}[1]{\vspace{.0in}\noindent{\bf {#1}} \hspace{.04in}}
+\newcommand{\myparnoskip}[1]{\noindent{\bfseries #1}\hspace{1em}}
+\newcommand{\field}{\hspace{-.03in}\rightarrow\hspace{-.04in}}
+\newcommand{\hd}{\sffamily\bfseries\footnotesize}
+\newcommand{\hda}{\sffamily\bfseries}
+\newcommand{\ie}{\emph{i.e.}, }
+\newcommand{\eg}{\emph{e.g.}, }
+\newcommand{\etc}{\emph{etc.}}
+\newcommand{\etal}{, \emph{et al.}}
+
+\newcommand{\myhline}{\begin{tabular}{l} \hspace*{3.0in} \\
+      \hline\end{tabular}}
+\newcommand{\myfullhline}{\begin{tabular}{l} \hspace*{6.4in} \\
+      \hline\end{tabular}}
+\newcommand\uclinux{{\aufnt $\mu$\emph{C}}{\tt linux} }
+
+\newcommand{\ob}{}
+\newcommand{\cb}{}
+
+\def\sharedaffiliation{
+\end{tabular}
+\begin{tabular}{c}}
+
+
+% For reducing item spacing in bulleted lists (see pg 166 of latex book)
+\newcommand{\mybeginlist}{\begin{list}{\labelitemi}{\setlength{\itemindent}{0.0in}
+\setlength{\topsep}{0.05in}\setlength{\partopsep}{0.0in}
+\setlength{\itemsep}{0.0in}\setlength{\parsep}{0.0in}\setlength{\leftmargin}{0.17in}}}
+
+\newcommand{\mybeginlistwithlabel}[1]{\begin{list}{#1}{\setlength{\itemindent}{0.0in}
+\setlength{\topsep}{0.05in}\setlength{\partopsep}{0.0in}
+\setlength{\itemsep}{0.0in}\setlength{\parsep}{0.0in}\setlength{\leftmargin}{0.17in}}}
+
+\newcommand{\mybeginenumerate}{\begin{enumerate}{\setlength{\itemindent}{0.0in}
+\setlength{\topsep}{0.05in}\setlength{\partopsep}{0.0in}
+\setlength{\itemsep}{0.0in}\setlength{\parsep}{0.0in}\setlength{\leftmargin}{0.17in}}}
+
+
+\begin{document}
+\title{ \bfseries Retrofitting Security in COTS Software with Binary Rewriting}
+%\author{P\'{a}draig O'Sullivan \and Rajeev Barua \and Angelos D. Keromytis}
+% Authors taken out for blind review
+\date{}
+\maketitle
+
+\input{abstract}
+\input{introduction}
+\input{related}
+\input{background}
+\input{methods}
+\input{results}
+\input{conclusions}
+
+\bibliography{references}
+\bibliographystyle{plain}
+
+\end{document}
